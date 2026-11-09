@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>WinGo 5-AI Master & 2-1 Judge Engine</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800;900&display=swap');
+
+        :root {
+            --bg-deep: #030712;
+            --card-glass: rgba(13, 18, 36, 0.96);
+            --white-stroke: rgba(255, 255, 255, 0.85);
+            --accent-cyan: #00f2fe;
+            --accent-purple: #9d4edd;
+            --accent-green: #10b981;
+            --accent-red: #ff3366;
+            --gold: #ffb703;
+            --text-main: #f8fafc;
+            --text-sub: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+        body { background-color: var(--bg-deep); color: var(--text-main); display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 6px; }
+
+        .app-card {
+            width: 100%; max-width: 440px; background: var(--card-glass);
+            backdrop-filter: blur(20px); border-radius: 20px; padding: 12px;
+            border: 1.5px solid var(--white-stroke); box-shadow: 0 0 25px rgba(0,242,254,0.15);
+        }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .header-title h1 { font-size: 7.5px; color: #fff; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .telegram-btn { background: #0088cc; color: #fff; font-size: 8px; font-weight: 800; padding: 4px 8px; border-radius: 14px; text-decoration: none; }
+
+        .period-box {
+            background: rgba(3, 7, 18, 0.65); border-radius: 10px; padding: 6px 10px;
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .timer-container {
+            background: rgba(3, 7, 18, 0.75); border-radius: 10px; padding: 4px 10px; margin-bottom: 6px; border: 1px solid rgba(255, 255, 255, 0.12); text-align: center;
+        }
+        .timer-clock { font-size: 16px; font-weight: 900; color: var(--accent-green); font-family: monospace; }
+
+        .ai-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 6px;
+        }
+        .ai-card {
+            background: rgba(3, 7, 18, 0.8); border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px; padding: 5px 6px; font-size: 7.5px; text-align: left;
+        }
+        .ai-name { color: var(--gold); font-weight: 700; margin-bottom: 1px; display: flex; justify-content: space-between; }
+        .ai-val { color: #fff; font-weight: 900; font-size: 8px; }
+
+        .supervisor-signal-box {
+            width: 100%;
+            background: linear-gradient(135deg, rgba(0, 242, 254, 0.15), rgba(157, 78, 221, 0.2));
+            border-radius: 14px; padding: 10px; text-align: center; margin-bottom: 6px;
+            border: 2px solid var(--accent-cyan);
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+        }
+
+        .signal-label { font-size: 8px; color: var(--text-sub); font-weight: 800; letter-spacing: 1px; }
+        .signal-trend {
+            font-size: 28px; font-weight: 900; margin: 3px 0; color: #fff;
+            text-shadow: 0 0 15px rgba(0, 242, 254, 0.7); letter-spacing: 2px;
+        }
+        .signal-trend.green-text { color: var(--accent-green); text-shadow: 0 0 15px rgba(16, 185, 129, 0.7); }
+        .signal-trend.red-text { color: var(--accent-red); text-shadow: 0 0 15px rgba(255, 51, 102, 0.7); }
+
+        .logic-panel { background: rgba(3, 7, 18, 0.65); border-radius: 10px; padding: 6px 8px; margin-bottom: 6px; border: 1px solid rgba(255, 255, 255, 0.12); }
+        .logic-box { font-size: 8.5px; color: #cbd5e1; line-height: 1.2; background: rgba(15, 23, 42, 0.5); padding: 5px; border-radius: 6px; text-align: left; }
+
+        .history-container {
+            background: rgba(3, 7, 18, 0.85); border-radius: 10px; padding: 6px;
+            border: 1.5px solid rgba(255, 183, 3, 0.35); max-height: 130px; overflow-y: auto;
+        }
+
+        .history-table { width: 100%; border-collapse: collapse; font-size: 8px; text-align: center; }
+        .history-table th { color: var(--text-sub); padding: 4px 2px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); position: sticky; top: 0; background: #030712; }
+        .history-table td { padding: 4px 2px; border-bottom: 1px solid rgba(255, 255, 255, 0.04); }
+
+        .badge-win { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); padding: 1px 4px; border-radius: 3px; font-weight: 800; }
+        .badge-loss { background: rgba(255, 51, 102, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); padding: 1px 4px; border-radius: 3px; font-weight: 800; }
+    </style>
+
+    <!-- Firebase SDKs & Cloud Sync -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCLBtPq8xK9COk6GZyC-zHEtLFfW8-qQH0",
+            authDomain: "ghugh-b4903.firebaseapp.com",
+            projectId: "ghugh-b4903",
+            storageBucket: "ghugh-b4903.firebasestorage.app",
+            messagingSenderId: "960134803091",
+            appId: "1:960134803091:web:795feeb01f4199bbeee766",
+            measurementId: "G-N87ZW6067E"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let userId = localStorage.getItem("wingo_user_id");
+        if (!userId) {
+            userId = "User_" + Math.random().toString(36).substring(2, 9);
+            localStorage.setItem("wingo_user_id", userId);
+        }
+
+        window.syncUserActivityToCloud = async function(historyLogs, totalWins, totalLosses) {
+            try {
+                const expireAt = new Date();
+                expireAt.setDate(expireAt.getDate() + 15);
+
+                await setDoc(doc(db, "users_activity", userId), {
+                    userId: userId,
+                    lastUpdated: new Date().toISOString(),
+                    expireAt: expireAt.toISOString(),
+                    wins: totalWins,
+                    losses: totalLosses,
+                    history: historyLogs.slice(0, 20)
+                }, { merge: true });
+            } catch (e) {
+                console.error("Cloud Sync Error: ", e);
+            }
+        };
+    </script>
+</head>
+<body>
+
+<div class="app-card">
+    <div class="top-bar">
+        <div class="header-title"><h1>WinGo 5-AI Master & 2-1 Judge</h1></div>
+        <a href="https://t.me/AsifWingoExperttrick" target="_blank" class="telegram-btn">TELEGRAM</a>
+    </div>
+
+    <div class="period-box">
+        <div><div style="font-size:8px; color:var(--text-sub)">TARGET PERIOD</div><div style="font-size:12px; font-weight:900; color:var(--gold)" id="targetPeriod">----</div></div>
+        <div style="text-align: right;"><div style="font-size:8px; color:var(--text-sub)">LAST RESULT</div><div style="font-size:12px; font-weight:900; color:var(--accent-cyan)" id="lastNum">-</div></div>
+    </div>
+
+    <div class="timer-container">
+        <div class="timer-clock" id="timerClock">00:30</div>
+    </div>
+
+    <!-- 5 AI Status Grid Cards -->
+    <div class="ai-grid">
+        <div class="ai-card">
+            <div class="ai-name"><span>AI-1</span><span>Dragon</span></div>
+            <div class="ai-val" id="ai1Val">--</div>
+        </div>
+        <div class="ai-card">
+            <div class="ai-name"><span>AI-2</span><span>ZigZag</span></div>
+            <div class="ai-val" id="ai2Val">--</div>
+        </div>
+        <div class="ai-card">
+            <div class="ai-name"><span>AI-3</span><span>Market</span></div>
+            <div class="ai-val" id="ai3Val">--</div>
+        </div>
+        <div class="ai-card">
+            <div class="ai-name" style="color:var(--gold)"><span>AI-4</span><span>2-1 Judge</span></div>
+            <div class="ai-val" id="ai4Val">Active</div>
+        </div>
+        <div class="ai-card" style="grid-column: span 2;">
+            <div class="ai-name"><span>AI-5 (Master Supervisor Filter)</span><span style="color:var(--accent-cyan)">Active</span></div>
+            <div class="ai-val" id="ai5Val">Running...</div>
+        </div>
+    </div>
+
+    <!-- Master Signal Box -->
+    <div class="supervisor-signal-box">
+        <div class="signal-label">AI-5 MASTER 2-1 JUDGED SIGNAL</div>
+        <div class="signal-trend" id="predTrend">BIG</div>
+        <div style="font-size:8.5px; font-weight:800; color:var(--accent-cyan);" id="phaseMode">⚡ 5 AI Models synchronized...</div>
+    </div>
+
+    <div class="logic-panel">
+        <div style="font-size: 8px; color: var(--accent-cyan); font-weight: 800; margin-bottom: 2px;">🧠 2-1 MATRIX JUDGE & DRAGON RIDER LOGIC</div>
+        <div class="logic-box" id="logicBox">> AI-4 specifically judging 2 Big 1 Small / 2 Small 1 Big trends without skipping active dragon streams...</div>
+    </div>
+
+    <div class="history-container">
+        <div style="font-size:8.5px; color:var(--text-sub); margin-bottom:4px; display:flex; justify-content:space-between;">
+            <span style="color:var(--gold); font-weight:800;">📊 EXECUTION LOGS</span>
+            <span id="winRateText" style="color:var(--gold)">WIN: 0/0</span>
+        </div>
+        <table class="history-table">
+            <thead>
+                <tr>
+                    <th>PER</th>
+                    <th>RESULT</th>
+                    <th>PREDICT</th>
+                    <th>STATUS</th>
+                </tr>
+            </thead>
+            <tbody id="historyBody">
+                <tr><td colspan="4" style="color:var(--text-sub);">Connecting...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const WINGO_30S_API = "https://draw.ar-lottery01.com/WinGo/WinGo_30S/GetHistoryIssuePage.json";
+    let totalWins = 0, totalLosses = 0;
+    let lastPrediction = null, lastProcessedIssue = "", historyLogs = [];
+
+    function startTimerEngine() {
+        setInterval(() => {
+            const remSec = 30 - (new Date().getSeconds() % 30);
+            document.getElementById('timerClock').innerText = `00:${remSec < 10 ? '0' : ''}${remSec}`;
+            if (remSec === 29 || remSec === 1) runLiveEngine();
+        }, 1000);
+    }
+
+    async function fetchDirectData() {
+        try {
+            const res = await fetch(WINGO_30S_API);
+            if (res.ok) {
+                const json = await res.json();
+                return json.data?.list || json.list || json.data || [];
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    /* 🧠 5-AI Master Engine with Specialized 2-1 Matrix Judge */
+    function compute5AIEngine(list) {
+        if (!list || list.length < 10) {
+            return { decision: "BIG", phase: "Initializing 5 AIs", reason: "Gathering live samples..." };
+        }
+
+        const nums = list.map(i => parseInt(i.number ?? i.num ?? i.winningNumber ?? 0));
+        const sizes = nums.map(n => (n >= 5 ? "BIG" : "SMALL"));
+
+        let s0 = sizes[0], s1 = sizes[1], s2 = sizes[2], s3 = sizes[3];
+
+        // AI-1: Dragon Specialist (Unstoppable stream rider)
+        let dragonStreak = 1;
+        for (let i = 0; i < sizes.length - 1; i++) {
+            if (sizes[i] === s0) dragonStreak++;
+            else break;
+        }
+        let isDragon = dragonStreak >= 2;
+        let ai1Decision = s0;
+
+        // AI-2: Zig-Zag Specialist
+        let isZigZag = (s0 !== s1 && s1 !== s2);
+        let ai2Decision = s0 === "BIG" ? "SMALL" : "BIG";
+
+        // AI-3: Market Factor / Continuation Tracker
+        let ai3Decision = s0;
+
+        // AI-4: Specialized 2-1 Matrix & Trend Judge (The core expert for 2 Big 1 Small / 2 Small 1 Big)
+        let is2Big1Small = (s2 === "BIG" && s1 === "BIG" && s0 === "SMALL");
+        let is1Small2Big = (s2 === "SMALL" && s1 === "BIG" && s0 === "BIG");
+        let is2Small1Big = (s2 === "SMALL" && s1 === "SMALL" && s0 === "BIG");
+        let is1Big2Small = (s2 === "BIG" && s1 === "SMALL" && s0 === "SMALL");
+
+        let matrixJudgeState = "NORMAL FLOW";
+        let ai4Decision = s0;
+
+        if (is2Big1Small) {
+            matrixJudgeState = "2B-1S Sandwich (Target: BIG)";
+            ai4Decision = "BIG";
+        } else if (is1Small2Big) {
+            matrixJudgeState = "1S-2B Continuation (Target: BIG)";
+            ai4Decision = "BIG";
+        } else if (is2Small1Big) {
+            matrixJudgeState = "2S-1B Sandwich (Target: SMALL)";
+            ai4Decision = "SMALL";
+        } else if (is1Big2Small) {
+            matrixJudgeState = "1B-2S Continuation (Target: SMALL)";
+            ai4Decision = "SMALL";
+        }
+
+        // AI-5: Master Supervisor Filter (Prioritizes Dragon or 2-1 Judge accurately without skipping)
+        let finalDecision = s0;
+        let supervisorNote = "Standard Momentum Flow";
+
+        if (isDragon) {
+            finalDecision = s0;
+            supervisorNote = `Dragon Stream Locked (${dragonStreak}x ${s0})`;
+        } else if (matrixJudgeState !== "NORMAL FLOW") {
+            finalDecision = ai4Decision;
+            supervisorNote = `AI-4 Matrix Judge Locked (${matrixJudgeState})`;
+        } else if (isZigZag) {
+            finalDecision = ai2Decision;
+            supervisorNote = "Zig-Zag Alternation Locked";
+        } else {
+            finalDecision = s0;
+            supervisorNote = "Continuation Trend Flow";
+        }
+
+        // Update UI
+        document.getElementById('ai1Val').innerText = isDragon ? `${dragonStreak}x ${s0}` : "Searching";
+        document.getElementById('ai2Val').innerText = isZigZag ? ai2Decision : "Pass";
+        document.getElementById('ai3Val').innerText = "Active";
+        document.getElementById('ai4Val').innerText = matrixJudgeState.includes("Target") ? matrixJudgeState.split("(")[1].replace(")", "") : "Stable";
+        document.getElementById('ai5Val').innerText = "Optimized";
+
+        return {
+            decision: finalDecision,
+            phase: `🎯 ${supervisorNote}`,
+            reason: `Recent sequence: [${s2}, ${s1}, ${s0}]. Dragon Streak: ${dragonStreak}. Matrix Judge State: ${matrixJudgeState}. Final Signal: ${finalDecision}.`
+        };
+    }
+
+    async function runLiveEngine() {
+        const list = await fetchDirectData();
+        if (!list || list.length === 0) return;
+
+        const latest = list[0];
+        const lastNum = parseInt(latest.number ?? latest.num ?? latest.winningNumber ?? 0);
+        const lastIssue = String(latest.issueNumber ?? latest.issue ?? latest.period ?? "");
+        const actualSize = lastNum >= 5 ? "BIG" : "SMALL";
+
+        if (lastIssue === lastProcessedIssue) return;
+        if (lastIssue) lastProcessedIssue = lastIssue;
+
+        document.getElementById('lastNum').innerText = `${lastNum} (${actualSize})`;
+
+        try {
+            if (lastIssue) {
+                document.getElementById('targetPeriod').innerText = (BigInt(lastIssue) + 1n).toString().slice(-4);
+            }
+        } catch(e) { document.getElementById('targetPeriod').innerText = "NEXT"; }
+
+        if (lastPrediction !== null) {
+            let status = "";
+            let isWin = (actualSize === lastPrediction);
+
+            if (isWin) {
+                status = "WIN";
+                totalWins++;
+            } else {
+                status = "LOSS";
+                totalLosses++;
+            }
+
+            historyLogs.unshift({
+                issue: lastIssue || "----", actual: `${lastNum} (${actualSize})`,
+                pred: lastPrediction, status: status
+            });
+
+            document.getElementById('historyBody').innerHTML = historyLogs.map(item => {
+                let badgeClass = item.status === 'WIN' ? 'badge-win' : 'badge-loss';
+                return `
+                <tr>
+                    <td style="color:var(--text-sub)">${item.issue.slice(-4)}</td>
+                    <td><b>${item.actual}</b></td>
+                    <td style="font-weight:bold">${item.pred}</td>
+                    <td><span class="${badgeClass}">${item.status}</span></td>
+                </tr>
+                `;
+            }).join('');
+
+            document.getElementById('winRateText').innerText = `WIN: ${totalWins}/${totalWins + totalLosses}`;
+
+            if (typeof window.syncUserActivityToCloud === 'function') {
+                window.syncUserActivityToCloud(historyLogs, totalWins, totalLosses);
+            }
+        }
+
+        const evalResult = compute5AIEngine(list);
+
+        const predElem = document.getElementById('predTrend');
+        predElem.innerText = evalResult.decision;
+
+        document.getElementById('phaseMode').innerText = evalResult.phase;
+
+        predElem.className = "signal-trend";
+        if (evalResult.decision === "BIG") predElem.classList.add('green-text');
+        else predElem.classList.add('red-text');
+
+        document.getElementById('logicBox').innerText = evalResult.reason;
+        lastPrediction = evalResult.decision;
+    }
+
+    startTimerEngine();
+    runLiveEngine();
+</script>
+
+</body>
+</html>
